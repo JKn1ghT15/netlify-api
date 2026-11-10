@@ -1,7 +1,7 @@
-![Prueba Postman](./assets/200 ok.jpg)
-![Prueba Postman](./assets/200 ok1.jpg)
-![Prueba Postman](./assets/atentamentejona.jpg)
-![Prueba Netifly](./assets/NETLIFY.jpg)
+![Respuesta 200 OK](./assets/200%20ok.png)
+![Respuesta 200 OK Segunda Prueba](./assets/200%20ok1%20.png)
+![Prueba de correo](./assets/atentamentejona.png)
+![Pruebas en Netlify](./assets/NETLIFY.png)
 
  # 1. Cold Start
  El Cold Start (arranque en frío) es el fenómeno que se produce en arquitecturas *serverless* al invocar una función sin un contenedor de ejecución activo. En ese caso, la plataforma tiene que preparar un entorno nuevo, descargar el código, instalar o cargar las dependencias (el entorno de ejecución de Node. js) y correr el script inicial.

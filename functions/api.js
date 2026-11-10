@@ -3,24 +3,42 @@ import serverless from 'serverless-http';
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 
-// Cargar variables de entorno en desarrollo local
 dotenv.config();
 
 const app = express();
 const router = express.Router();
 
-// Middlewares fundamentales
 app.use(express.json());
 
-// Helper para validar formato de correo electronico
+
 function esCorreoValido(email) {
   const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return regex.test(email);
 }
 
-// -------------------------------------------------------------
-// Endpoint 1: Obtener la hora del servidor
-// -------------------------------------------------------------
+
+function autenticarApiKey(req, res, next) {
+  const apiKey = req.headers['x-api-key'];
+  const secretKey = process.env.API_SECRET_KEY;
+
+  if (!secretKey) {
+    return res.status(500).json({
+      status: 'error',
+      message: 'API_SECRET_KEY no está configurada en el servidor.'
+    });
+  }
+
+  if (!apiKey || apiKey !== secretKey) {
+    return res.status(401).json({
+      status: 'error',
+      message: 'No autorizado. La cabecera x-api-key es inválida o inexistente.'
+    });
+  }
+
+  next();
+}
+
+
 router.get('/time', (req, res) => {
   const now = new Date();
 
@@ -36,29 +54,30 @@ router.get('/time', (req, res) => {
   });
 });
 
-// -------------------------------------------------------------
-// Endpoint 2: Envio de correo electronico
-// -------------------------------------------------------------
-router.post('/send-email', async (req, res) => {
-  try {
-    const { to, subject, message } = req.body;
 
-    // Validacion defensiva de datos de entrada
+router.post('/send-email', autenticarApiKey, async (req, res) => {
+  try {
+    const { to, subject, message, senderName } = req.body;
+
+    
     if (!to || !subject || !message) {
       return res.status(400).json({
         status: 'error',
-        message: 'Parametros obligatorios faltantes: to, subject y message son requeridos.'
+        message: 'Parámetros obligatorios faltantes: to, subject y message son requeridos.'
       });
     }
 
     if (!esCorreoValido(to)) {
       return res.status(400).json({
         status: 'error',
-        message: 'El formato de correo en el campo "to" no es valido.'
+        message: 'El formato de correo en el campo "to" no es válido.'
       });
     }
 
-    // Comprobacion de configuracion en variables de entorno
+    
+    const sanitizedSubject = subject.replace(/[\r\n]/g, '');
+
+  
     const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, EMAIL_FROM } = process.env;
 
     if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
@@ -68,7 +87,7 @@ router.post('/send-email', async (req, res) => {
       });
     }
 
-    // Creacion del transporte SMTP con Nodemailer
+   
     const transporter = nodemailer.createTransport({
       host: SMTP_HOST,
       port: Number(SMTP_PORT) || 587,
@@ -79,19 +98,43 @@ router.post('/send-email', async (req, res) => {
       }
     });
 
-    // Envio del mensaje
+    
+    const nombreRemitente = senderName ? senderName.trim() : 'Sistema Serverless';
+
     const info = await transporter.sendMail({
-      from: EMAIL_FROM || `"API Serverless" <${SMTP_USER}>`,
+      from: EMAIL_FROM || `"${nombreRemitente}" <${SMTP_USER}>`,
       to,
-      subject,
+      subject: sanitizedSubject,
       text: message,
       html: `
-        <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
-          <h2 style="color: #2b2d42;">Mensaje Transaccional</h2>
-          <p>${message}</p>
-          <hr />
-          <small style="color: #888;">Enviado mediante Netlify Express API Serverless a las ${new Date().toUTCString()}</small>
-        </div>
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; }
+            .card { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); overflow: hidden; border: 1px solid #e1e4e8; }
+            .header { background-color: #00c7b7; color: #ffffff; padding: 20px; text-align: center; }
+            .header h1 { margin: 0; font-size: 20px; }
+            .content { padding: 30px; color: #333333; line-height: 1.6; }
+            .footer { background-color: #f8f9fa; padding: 15px; text-align: center; font-size: 12px; color: #6c757d; border-top: 1px solid #e1e4e8; }
+          </style>
+        </head>
+        <body>
+          <div class="card">
+            <div class="header">
+              <h1>Notificación Transaccional</h1>
+            </div>
+            <div class="content">
+              <p>Hola,</p>
+              <p>${message}</p>
+              <p>Atentamente,<br><strong>${nombreRemitente}</strong></p>
+            </div>
+            <div class="footer">
+              Enviado automáticamente desde Netlify Express API Serverless el ${new Date().toUTCString()}
+            </div>
+          </div>
+        </body>
+        </html>
       `
     });
 
@@ -105,7 +148,7 @@ router.post('/send-email', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error al procesar envio de correo:', error);
+    console.error('Error al procesar envío de correo:', error);
     return res.status(500).json({
       status: 'error',
       message: 'Fallo interno al despachar el correo.',
@@ -114,8 +157,6 @@ router.post('/send-email', async (req, res) => {
   }
 });
 
-// Anclar el router al prefijo base /api
 app.use('/api', router);
 
-// Exportar como handler serverless (SIN app.listen)
 export const handler = serverless(app);

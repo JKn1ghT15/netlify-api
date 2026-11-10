@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "netlify dev",
     "start": "node netlify/functions/api.js"
   },
   "dependencies": {
@@ -11,8 +10,5 @@
     "express": "^4.21.0",
     "nodemailer": "^6.9.15",
     "serverless-http": "^3.2.0"
-  },
-  "devDependencies": {
-    "netlify-cli": "^17.37.0"
   }
 }
